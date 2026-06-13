@@ -5,33 +5,54 @@
     <title>TebligatSayaç Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        body { margin: 0; background-color: #020617; color: #fff; font-family: sans-serif; padding: 20px; }
-        .main { max-width: 600px; margin: auto; background: #0f172a; padding: 20px; border-radius: 12px; }
-        #sonuc { margin-top: 20px; padding: 15px; border: 1px solid #22c55e; border-radius: 8px; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #020617; color: #f1f5f9; padding: 20px; overflow-x: hidden; }
+        .main-container { display: flex; gap: 20px; max-width: 1100px; margin: auto; background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 16px; border: 1px solid #1e293b; }
+        .panel { background: rgba(30, 41, 59, 0.7); padding: 20px; border-radius: 12px; }
+        .left-panel { flex: 2; }
+        .right-panel { flex: 1; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #334155; padding: 5px; text-align: center; font-size: 11px; }
+        th { background: #0ea5e9; color: white; }
+        .btn { cursor: pointer; padding: 10px; border-radius: 6px; border: none; font-weight: bold; width: 100%; margin-top: 10px; background: #22c55e; color: white; }
+        #dropZone { border: 2px dashed #0ea5e9; padding: 30px; text-align: center; cursor: pointer; border-radius: 8px; margin-bottom: 10px; }
+        #sonucAlani { margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.3); border: 1px solid #22c55e; border-radius: 8px; }
     </style>
 </head>
 <body>
-<div class="main">
-    <h1>Tebligat Sayaç</h1>
-    <input type="file" id="f" onchange="oku(this)">
-    <div id="sonuc">Lütfen tebligat listesini seç...</div>
+
+<div class="main-container">
+    <div class="panel left-panel">
+        <h1>© UYAP OCR Tebligat Ücreti Hesaplama ©</h1>
+        <div id="dropZone" onclick="document.getElementById('fotoSec').click()">
+            Görseli Buraya Sürükle veya Tıkla
+            <input type="file" id="fotoSec" style="display:none" onchange="analizEt(this)">
+        </div>
+        <div id="sonucAlani">Sonuç bekleniyor...</div>
+    </div>
+
+    <div class="panel right-panel">
+        <h2>Tarife Yönetimi</h2>
+        <table>
+            <thead><tr><th>Başlangıç</th><th>Ücret</th></tr></thead>
+            <tbody id="tarifeTablo"></tbody>
+        </table>
+    </div>
 </div>
 
 <script>
-async function oku(inp) {
-    let s = document.getElementById('sonuc');
-    s.innerText = "Okunuyor, lütfen bekle...";
-    
+// Tarife tablosunu oluştur
+let t = [{b:"01.11.2019", u:19},{b:"02.11.2021", u:26},{b:"08.02.2022", u:31},{b:"16.08.2022", u:42},{b:"01.02.2023", u:58},{b:"31.07.2023", u:87},{b:"22.01.2024", u:120},{b:"01.06.2024", u:175},{b:"10.02.2025", u:210},{b:"04.02.2026", u:265}];
+document.getElementById('tarifeTablo').innerHTML = t.map(x => `<tr><td>${x.b}</td><td>${x.u} TL</td></tr>`).join('');
+
+async function analizEt(inp) {
+    let s = document.getElementById('sonucAlani');
+    s.innerText = "Analiz ediliyor...";
     try {
         const { data: { text } } = await Tesseract.recognize(inp.files[0], 'tur');
-        let tarihler = text.match(/(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})/g) || [];
-        
-        let adet = tarihler.length;
-        let toplam = adet * 265;
-        
-        s.innerHTML = `Toplam okunan: ${adet} adet<br>Toplam Tutar: ${toplam} TL`;
-    } catch (e) {
-        s.innerHTML = "Hata oluştu. Chrome'da açmayı dene.";
+        let adet = (text.match(/(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})/g) || []).length;
+        s.innerHTML = `Bulunan Adet: <b>${adet}</b><br>Toplam Tutar: <b>${adet * 265} TL</b>`;
+    } catch(e) {
+        s.innerHTML = "APK kısıtlaması! Uygulamayı Chrome tarayıcısıyla aç.";
     }
 }
 </script>
