@@ -2,24 +2,26 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TebligatSayaç Pro v10.0</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #020617; color: #f1f5f9; padding: 20px; overflow-x: hidden; user-select: none; }
         #bgCanvas { position: fixed; top: 0; left: 0; z-index: -1; }
-        .main-container { display: flex; gap: 20px; max-width: 1100px; margin: auto; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); padding: 20px; border-radius: 16px; border: 1px solid #1e293b; }
+        .main-container { display: flex; gap: 20px; max-width: 1100px; margin: auto; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); padding: 20px; border-radius: 16px; border: 1px solid #1e293b; flex-wrap: wrap; }
         .panel { background: rgba(30, 41, 59, 0.7); padding: 20px; border-radius: 12px; }
-        .left-panel { flex: 2; }
-        .right-panel { flex: 1; }
+        .left-panel { flex: 2; min-width: 300px; }
+        .right-panel { flex: 1; min-width: 300px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { border: 1px solid #334155; padding: 5px; text-align: center; font-size: 11px; }
         th { background: #0ea5e9; color: white; }
-        .btn { cursor: pointer; padding: 10px; border-radius: 6px; border: none; font-weight: bold; width: 100%; margin-top: 10px; }
+        .btn { cursor: pointer; padding: 12px; border-radius: 6px; border: none; font-weight: bold; width: 100%; margin-top: 10px; transition: 0.3s; }
         .btn-analiz { background: #22c55e; color: white; }
         .btn-save { background: #3b82f6; color: white; }
+        .btn:hover { opacity: 0.8; }
         .input-text { width: 70px; background: #0f172a; color: white; border: 1px solid #334155; padding: 4px; text-align: center; }
         #dropZone { border: 2px dashed #0ea5e9; padding: 30px; text-align: center; cursor: pointer; border-radius: 8px; margin-bottom: 10px; color: #38bdf8; }
-        #sonucAlani { margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid #22c55e; }
+        #sonucAlani { margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid #22c55e; word-wrap: break-word; }
         .footer { margin-top: 20px; font-size: 12px; color: #94a3b8; text-align: center; border-top: 1px solid #334155; padding-top: 10px; }
     </style>
 </head>
@@ -34,12 +36,11 @@
             Görseli Buraya Sürükle veya Tıkla
             <input type="file" id="fotoSec" style="display:none" onchange="gorselSecildi(this)">
         </div>
-        <img id="onizleme" style="max-width:100%; display:none; border-radius:8px;">
+        <img id="onizleme" style="max-width:100%; display:none; border-radius:8px; margin-top:10px;">
         <button class="btn btn-analiz" onclick="analizEt()">ANALİZİ BAŞLAT VE HESAPLA</button>
         <div id="sonucAlani">Sonuç bekleniyor...</div>
         <div class="footer">
             <p>Geliştirici ve Hazırlayan: <b>Emre Yetkin KELEŞ</b></p>
-            <p><a href="mailto:ab242319@adalet.gov.tr" style="color:#0ea5e9;">ab242319@adalet.gov.tr</a></p>
         </div>
     </div>
 
@@ -55,11 +56,11 @@
 </div>
 
 <script>
-// --- ARKA PLAN ---
+// --- ARKA PLAN HAREKETİ ---
 const canvas = document.getElementById('bgCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-let particles = Array.from({length: 100}, () => ({x:Math.random()*canvas.width, y:Math.random()*canvas.height, r:Math.random()*2+1, v:Math.random()*0.5+0.1}));
+let particles = Array.from({length: 80}, () => ({x:Math.random()*canvas.width, y:Math.random()*canvas.height, r:Math.random()*2+1, v:Math.random()*0.5+0.1}));
 function draw() {
     ctx.fillStyle = "#020617"; ctx.fillRect(0,0,canvas.width, canvas.height);
     ctx.fillStyle = "#38bdf8";
@@ -68,7 +69,7 @@ function draw() {
 }
 draw();
 
-// --- VERİ ---
+// --- TARİFE AYARLARI ---
 let tarifeler = JSON.parse(localStorage.getItem('tarifeler')) || [
     {bas:"01.11.2019", bit:"31.12.2021", ucret:19, devam:false}, {bas:"02.11.2021", bit:"07.02.2022", ucret:26, devam:false},
     {bas:"08.02.2022", bit:"15.08.2022", ucret:31, devam:false}, {bas:"16.08.2022", bit:"31.01.2023", ucret:42, devam:false},
@@ -92,46 +93,47 @@ function tabloyuGuncelle() {
 }
 
 function kaydet() {
-    let baslar = document.querySelectorAll('.bas');
-    let bitler = document.querySelectorAll('.bit');
-    let ucretler = document.querySelectorAll('.ucr');
-    let kutular = document.querySelectorAll('input[type="checkbox"]');
+    let baslar = document.querySelectorAll('.bas'), bitler = document.querySelectorAll('.bit'), ucretler = document.querySelectorAll('.ucr'), kutular = document.querySelectorAll('input[type="checkbox"]');
     tarifeler = [];
-    for(let i=0; i<baslar.length; i++) {
-        tarifeler.push({ bas: baslar[i].value, bit: bitler[i].value, ucret: parseFloat(ucretler[i].value), devam: kutular[i].checked });
-    }
+    for(let i=0; i<baslar.length; i++) tarifeler.push({ bas: baslar[i].value, bit: bitler[i].value, ucret: parseFloat(ucretler[i].value), devam: kutular[i].checked });
     localStorage.setItem('tarifeler', JSON.stringify(tarifeler));
     alert("Ayarlar kaydedildi!");
 }
 
 function yeniSatirEkle() { tarifeler.push({bas:"01.01.2027", bit:"", ucret:0, devam:false}); tabloyuGuncelle(); }
 
-// --- ANALİZ ---
+// --- OCR ANALİZ ---
 async function analizEt() {
     if(!window.tempImage) return alert("Lütfen önce görsel yükleyin!");
-    document.getElementById('sonucAlani').innerHTML = "Analiz ediliyor...";
+    document.getElementById('sonucAlani').innerHTML = "Analiz ediliyor, lütfen bekleyiniz...";
     
-    const { data: { text } } = await Tesseract.recognize(window.tempImage, 'tur');
-    let temizText = text.replace(/o/gi, '0').replace(/l/gi, '1').replace(/I/gi, '1');
-    let tarihRegex = /(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})/g;
-    let tarihler = temizText.match(tarihRegex) || [];
+    try {
+        const worker = await Tesseract.createWorker('tur');
+        const { data: { text } } = await worker.recognize(window.tempImage);
+        await worker.terminate();
 
-    let toplam = 0, sayac = 0;
-    tarihler.forEach(tStr => {
-        let p = tStr.split(/[\/\.-]/);
-        let d = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
-        let tarife = tarifeler.find(tr => {
-            let b = tr.bas.split('.');
-            let basTarih = new Date(parseInt(b[2]), parseInt(b[1])-1, parseInt(b[0]));
-            if (tr.devam) return d >= basTarih;
-            let bt = tr.bit.split('.');
-            let bitTarih = new Date(parseInt(bt[2]), parseInt(bt[1]-1), parseInt(bt[0]));
-            return d >= basTarih && d <= bitTarih;
+        let t = text.replace(/o/gi, '0').replace(/l/gi, '1').replace(/I/gi, '1');
+        let tarihler = t.match(/(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})/g) || [];
+
+        let toplam = 0, sayac = 0;
+        tarihler.forEach(tStr => {
+            let p = tStr.split(/[\/\.-]/);
+            let d = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
+            let tarife = tarifeler.find(tr => {
+                let b = tr.bas.split('.');
+                let basTarih = new Date(parseInt(b[2]), parseInt(b[1])-1, parseInt(b[0]));
+                if (tr.devam) return d >= basTarih;
+                let bt = tr.bit.split('.');
+                let bitTarih = new Date(parseInt(bt[2]), parseInt(bt[1]-1), parseInt(bt[0]));
+                return d >= basTarih && d <= bitTarih;
+            });
+            if(tarife) { toplam += tarife.ucret; sayac++; }
         });
-        if(tarife) { toplam += tarife.ucret; sayac++; console.log("Bulundu: " + tStr + " (" + tarife.ucret + " TL)"); }
-    });
 
-    document.getElementById('sonucAlani').innerHTML = `Bulunan Adet: <b>${sayac}</b><br>Toplam Tutar: <b>${toplam.toFixed(2)} TL</b>`;
+        document.getElementById('sonucAlani').innerHTML = `Bulunan Adet: <b>${sayac}</b><br>Toplam Tutar: <b>${toplam.toFixed(2)} TL</b>`;
+    } catch (e) {
+        document.getElementById('sonucAlani').innerHTML = "Analiz hatası oluştu. İnternet bağlantınızı kontrol edin.";
+    }
 }
 
 function gorselSecildi(inp) {
@@ -140,6 +142,7 @@ function gorselSecildi(inp) {
     reader.onload = (e) => { document.getElementById('onizleme').src = e.target.result; document.getElementById('onizleme').style.display = 'block'; };
     reader.readAsDataURL(window.tempImage);
 }
+
 tabloyuGuncelle();
 </script>
 </body>
