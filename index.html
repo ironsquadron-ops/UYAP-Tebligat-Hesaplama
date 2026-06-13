@@ -3,49 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <title>UYAP OCR Tebligat Ücreti Hesaplama</title>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        body { background: #020617; color: #fff; font-family: sans-serif; display: flex; justify-content: center; padding: 20px; }
-        .box { background: #0f172a; padding: 30px; border-radius: 20px; border: 2px solid #0ea5e9; width: 100%; max-width: 600px; box-shadow: 0 0 20px rgba(14, 165, 233, 0.3); }
-        h1 { text-align: center; color: #0ea5e9; font-size: 20px; }
-        .file-input { background: #1e293b; padding: 10px; width: 100%; border-radius: 8px; margin: 10px 0; color: #fff; }
-        .btn { background: #22c55e; color: white; padding: 15px; width: 100%; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        #sonuc { margin-top: 20px; padding: 15px; background: #000; border-radius: 8px; border: 1px solid #334155; }
+        body { background-color: #020617; color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background-image: radial-gradient(circle at center, #1e293b 0%, #020617 100%); }
+        .main-box { background: rgba(15, 23, 42, 0.9); padding: 30px; border-radius: 15px; border: 2px solid #0ea5e9; width: 90%; max-width: 800px; box-shadow: 0 0 30px rgba(14, 165, 233, 0.2); }
+        h1 { text-align: center; color: #0ea5e9; font-size: 24px; border-bottom: 1px solid #334155; padding-bottom: 15px; margin-bottom: 20px; }
+        .upload-section { display: flex; flex-direction: column; gap: 10px; background: #1e293b; padding: 20px; border-radius: 10px; }
+        .btn { background: #22c55e; color: white; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; }
+        #sonuc { margin-top: 15px; padding: 15px; background: #000; border: 1px solid #334155; border-radius: 8px; min-height: 50px; }
         table { width: 100%; margin-top: 20px; border-collapse: collapse; }
-        th, td { border: 1px solid #334155; padding: 8px; text-align: center; }
+        th, td { border: 1px solid #334155; padding: 10px; text-align: center; color: #cbd5e1; }
+        th { background: #0ea5e9; color: white; }
+        .footer { text-align: center; font-size: 12px; color: #64748b; margin-top: 20px; }
     </style>
 </head>
 <body>
 
-<div class="box">
+<div class="main-box">
     <h1>© UYAP OCR TEBLİGAT ÜCRETİ HESAPLAMA ©</h1>
-    <input type="file" id="foto" class="file-input">
-    <button class="btn" onclick="hesapla()">ANALİZİ BAŞLAT VE HESAPLA</button>
-    <div id="sonuc">Sonuç bekleniyor...</div>
     
+    <div class="upload-section">
+        <label>Dosya Yükleme</label>
+        <input type="file" id="foto" accept="image/*">
+        <button class="btn" onclick="hesapla()">UYAP OCR TEBLİGAT ANALİZİ BAŞLAT VE TEBLİGAT HESAPLA</button>
+    </div>
+
+    <div id="sonuc">Sonuç bekleniyor...</div>
+
     <table>
-        <thead><tr><th>Tarih</th><th>Ücret</th></tr></thead>
+        <thead><tr><th>Tarih</th><th>Başlangıç</th><th>Ücret</th></tr></thead>
         <tbody id="tablo"></tbody>
     </table>
+    
+    <div class="footer">
+        Geliştirici ve Hazırlayan: Emre Yetkin KELEŞ | ab242319@adalet.gov.tr
+    </div>
 </div>
 
 <script>
-let tarifeler = [{b:"01.11.2019", u:19},{b:"02.11.2021", u:26},{b:"08.02.2022", u:31},{b:"16.08.2022", u:42},{b:"01.02.2023", u:58},{b:"31.07.2023", u:87},{b:"22.01.2024", u:120},{b:"01.06.2024", u:175},{b:"10.02.2025", u:210},{b:"04.02.2026", u:265}];
-document.getElementById('tablo').innerHTML = tarifeler.map(x => `<tr><td>${x.b}</td><td>${x.u} TL</td></tr>`).join('');
+let tarifeler = [{t:"Tarife 1", b:"01.11.2019", u:19},{t:"Tarife 2", b:"02.11.2021", u:26},{t:"Tarife 3", b:"08.02.2022", u:31},{t:"Tarife 4", b:"16.08.2022", u:42},{b:"01.02.2023", u:58},{b:"31.07.2023", u:87},{b:"22.01.2024", u:120},{b:"01.06.2024", u:175},{b:"10.02.2025", u:210},{b:"04.02.2026", u:265}];
+document.getElementById('tablo').innerHTML = tarifeler.map(x => `<tr><td>${x.t||'Güncel'}</td><td>${x.b||'04.02.2026'}</td><td>${x.u} TL</td></tr>`).join('');
 
 async function hesapla() {
     let f = document.getElementById('foto').files[0];
-    if(!f) return alert("Lütfen tebligat görselini seçin!");
+    if(!f) return alert("Lütfen tebligat görseli seçin!");
     let s = document.getElementById('sonuc');
-    s.innerText = "İşlem yapılıyor, lütfen bekleyin...";
+    s.innerText = "Analiz ediliyor, lütfen bekleyin...";
     try {
         const { data: { text } } = await Tesseract.recognize(f, 'tur');
         let tarihler = text.match(/(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})/g) || [];
         let adet = tarihler.length;
-        let toplam = adet * 265;
-        s.innerHTML = `Bulunan Adet: <b>${adet}</b><br>Toplam Tutar: <b>${toplam} TL</b>`;
+        s.innerHTML = `Bulunan Adet: <b>${adet}</b><br>Toplam Tutar: <b>${adet * 265} TL</b>`;
     } catch(e) {
-        s.innerHTML = "HATA: Lütfen Chrome tarayıcısını kullanın.";
+        s.innerHTML = "Analiz yapılamadı. Lütfen uygulamayı Chrome üzerinden açıp tekrar deneyin.";
     }
 }
 </script>
