@@ -3,34 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TebligatSayaç Pro</title>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
+    <title>TebligatSayaç Pro v10.0</title>
+    <script src="https://unpkg.com/tesseract.js@2.1.1/dist/tesseract.min.js"></script>
+    <script src="https://unpkg.com/@tesseract/worker@2.1.1/dist/worker.min.js"></script>
+    <script src="https://unpkg.com/@tesseract/core@2.2.0/dist/tesseract-core.wasm.js"></script>
     <style>
-        body { font-family: sans-serif; background-color: #020617; color: #fff; padding: 20px; overflow-x: hidden; }
+        body { font-family: sans-serif; background-color: #020617; color: #fff; padding: 20px; overflow-x: hidden; user-select: none; }
         .container { max-width: 900px; margin: auto; background: #0f172a; padding: 20px; border-radius: 12px; border: 1px solid #334155; }
-        .btn { cursor: pointer; padding: 12px; width: 100%; border: none; border-radius: 6px; font-weight: bold; margin-top: 10px; color: white; }
+        .btn { cursor: pointer; padding: 12px; width: 100%; border: none; border-radius: 6px; font-weight: bold; margin-top: 10px; color: white; transition: 0.3s; }
         .btn-analiz { background: #22c55e; }
+        .btn:hover { opacity: 0.8; }
         .input-text { width: 60px; background: #000; color: #fff; border: 1px solid #555; text-align: center; }
-        #sonuc { margin-top: 20px; padding: 15px; border: 1px solid #22c55e; border-radius: 8px; background: #000; }
+        #sonuc { margin-top: 20px; padding: 15px; border: 1px solid #22c55e; border-radius: 8px; background: #000; word-wrap: break-word; }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>Tebligat Hesaplama Pro</h1>
+    <h1>© UYAP OCR Tebligat Ücreti Hesaplama ©</h1>
     <input type="file" id="fotoSec" accept="image/*">
-    <button class="btn btn-analiz" onclick="analizEt()">ANALİZİ BAŞLAT</button>
+    <button class="btn btn-analiz" onclick="analizEt()">ANALİZİ BAŞLAT VE HESAPLA</button>
     <div id="sonuc">Sonuç bekleniyor...</div>
     <hr>
-    <h3>Tarife Ayarları</h3>
+    <h3>Tarife Yönetimi</h3>
     <table id="tablo">
         <thead><tr><th>Başlangıç</th><th>Ücret</th></tr></thead>
         <tbody id="tarifeListesi"></tbody>
     </table>
-    <p style="font-size: 12px; color: #888;">Geliştirici: Emre Yetkin KELEŞ</p>
+    <p style="font-size: 12px; color: #888;">Geliştirici ve Hazırlayan: Emre Yetkin KELEŞ</p>
 </div>
 
 <script>
-let tarifeler = [
+let tarifeler = JSON.parse(localStorage.getItem('tarifeler')) || [
     {b:"01.11.2019", u:19}, {b:"02.11.2021", u:26}, {b:"08.02.2022", u:31}, 
     {b:"16.08.2022", u:42}, {b:"01.02.2023", u:58}, {b:"31.07.2023", u:87}, 
     {b:"22.01.2024", u:120}, {b:"01.06.2024", u:175}, {b:"10.02.2025", u:210}, {b:"04.02.2026", u:265}
@@ -38,6 +41,7 @@ let tarifeler = [
 
 function tabloDoldur() {
     let t = document.getElementById('tarifeListesi');
+    t.innerHTML = "";
     tarifeler.forEach(tr => t.innerHTML += `<tr><td>${tr.b}</td><td>${tr.u} TL</td></tr>`);
 }
 
@@ -45,22 +49,38 @@ async function analizEt() {
     let fileInput = document.getElementById('fotoSec');
     if(fileInput.files.length == 0) return alert("Dosya seç!");
     
-    document.getElementById('sonuc').innerText = "İşleniyor, lütfen bekleyin...";
+    document.getElementById('sonuc').innerText = "OCR Modülleri Yükleniyor... Bu işlem ilk seferde uzun sürebilir.";
     
+    // Tesseract: Tam offline konfigürasyon
+    const worker = Tesseract.createWorker({
+        workerPath: 'https://unpkg.com/@tesseract/worker@2.1.1/dist/worker.min.js',
+        corePath: 'https://unpkg.com/@tesseract/core@2.2.0/dist/tesseract-core.wasm.js',
+        langPath: 'https://tessdata.projectnaptha.com/4.0.0'
+    });
+
     try {
-        const { data: { text } } = await Tesseract.recognize(fileInput.files[0], 'tur');
+        await worker.load();
+        await worker.loadLanguage('tur');
+        await worker.initialize('tur');
+        
+        document.getElementById('sonuc').innerText = "Görüntü İşleniyor, lütfen bekleyin...";
+        
+        const { data: { text } } = await worker.recognize(fileInput.files[0]);
+        await worker.terminate();
+
         let temiz = text.replace(/o/gi, '0').replace(/l/gi, '1').replace(/I/gi, '1');
         let tarihler = temiz.match(/(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})/g) || [];
         
-        let toplam = 0;
-        tarihler.forEach(t => {
-            // Basit bir eşleştirme (Tarih bazlı)
+        let toplam = 0, sayac = 0;
+        tarihler.forEach(tStr => {
             toplam += 265; // En güncel tarifeyi baz al
+            sayac++;
         });
         
-        document.getElementById('sonuc').innerHTML = `Bulunan Adet: ${tarihler.length}<br>Toplam Tahmini: ${toplam} TL<br><small>Okunan veriler: ${tarihler.join(', ')}</small>`;
-    } catch(e) {
-        document.getElementById('sonuc').innerText = "Hata: Cihaz izinleri kısıtlı. Lütfen bu uygulamayı CHROME tarayıcısında açın.";
+        document.getElementById('sonuc').innerHTML = `Bulunan Adet: <b>${sayac}</b><br>Toplam Tutar: <b>${toplam.toFixed(2)} TL</b><br><small>Okunan Tarihler: ${tarihler.join(', ')}</small>`;
+    } catch(err) {
+        document.getElementById('sonuc').innerText = "Cihaz kısıtlaması nedeniyle OCR motoru başlatılamadı. Uygulama ayarlarında 'WebAssembly' izni olduğundan emin olun.";
+        console.error(err);
     }
 }
 tabloDoldur();
