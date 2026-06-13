@@ -5,7 +5,7 @@
     <title>TebligatSayaç Pro v10.0</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #020617; color: #f1f5f9; padding: 20px; overflow-x: hidden; user-select: none; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #020617; color: #f1f5f9; padding: 20px; user-select: none; }
         #bgCanvas { position: fixed; top: 0; left: 0; z-index: -1; }
         .main-container { display: flex; gap: 20px; max-width: 1100px; margin: auto; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); padding: 20px; border-radius: 16px; border: 1px solid #1e293b; }
         .panel { background: rgba(30, 41, 59, 0.7); padding: 20px; border-radius: 12px; }
@@ -19,8 +19,7 @@
         .btn-save { background: #3b82f6; color: white; }
         .input-text { width: 70px; background: #0f172a; color: white; border: 1px solid #334155; padding: 4px; text-align: center; }
         #dropZone { border: 2px dashed #0ea5e9; padding: 30px; text-align: center; cursor: pointer; border-radius: 8px; margin-bottom: 10px; color: #38bdf8; }
-        #sonucAlani { margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid #22c55e; }
-        .footer { margin-top: 20px; font-size: 12px; color: #94a3b8; text-align: center; border-top: 1px solid #334155; padding-top: 10px; }
+        #sonucAlani { margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid #22c55e; min-height: 50px; }
     </style>
 </head>
 <body onpaste="handlePaste(event)">
@@ -34,14 +33,9 @@
             Görseli Buraya Sürükle, Yapıştır (Ctrl+V) veya Tıkla
             <input type="file" id="fotoSec" style="display:none" onchange="gorselSecildi(this)">
         </div>
-        <img id="onizleme" style="max-width:100%; display:none; border-radius:8px;">
-        <button class="btn btn-analiz" onclick="analizEt()">UYAP OCR TEBLİGAT ANALİZİ BAŞLAT VE TEBLİGAT HESAPLA</button>
+        <img id="onizleme" style="max-width:100%; display:none; border-radius:8px; margin-bottom:10px;">
+        <button class="btn btn-analiz" onclick="analizEt()">ANALİZİ BAŞLAT VE HESAPLA</button>
         <div id="sonucAlani">Sonuç bekleniyor...</div>
-        
-        <div class="footer">
-            <h1>Geliştirici ve Hazırlayan: <b>Emre Yetkin KELEŞ</b><br><h1>
-            <h1><a href="mailto:ab242319@adalet.gov.tr" style="color:#0ea5e9;">ab242319@adalet.gov.tr</a>
-        </div><h1>
     </div>
 
     <div class="panel right-panel">
@@ -56,28 +50,12 @@
 </div>
 
 <script>
-// --- HAREKETLİ DÜNYA SİMÜLASYONU ---
+// --- ALTYAPI ---
 const canvas = document.getElementById('bgCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
-let particles = [];
-for(let i=0; i<100; i++) particles.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, r:Math.random()*2+1, v:Math.random()*0.5+0.1});
 
-function draw() {
-    ctx.fillStyle = "#020617";
-    ctx.fillRect(0,0,canvas.width, canvas.height);
-    ctx.fillStyle = "#38bdf8";
-    particles.forEach(p => {
-        p.y -= p.v;
-        if(p.y < 0) p.y = canvas.height;
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
-    });
-    requestAnimationFrame(draw);
-}
-draw();
-
-// --- TARİFE YÖNETİMİ VE OCR ---
 let tarifeler = JSON.parse(localStorage.getItem('tarifeler')) || [
     {bas:"01.11.2019", bit:"31.12.2021", ucret:19, devam:false},
     {bas:"02.11.2021", bit:"07.02.2022", ucret:26, devam:false},
@@ -95,12 +73,11 @@ function tabloyuGuncelle() {
     let tbody = document.getElementById('tarifeTablo');
     tbody.innerHTML = "";
     tarifeler.forEach((t, i) => {
-        let bitisDegeri = t.devam ? "" : (t.bit || "");
         tbody.innerHTML += `<tr>
             <td><input class="input-text bas" value="${t.bas}"></td>
-            <td><input class="input-text bit" value="${bitisDegeri}" ${t.devam ? 'disabled placeholder="Sonsuz"' : ''}></td>
+            <td><input class="input-text bit" value="${t.devam ? '' : t.bit}" ${t.devam ? 'disabled' : ''}></td>
             <td><input class="input-text ucr" value="${t.ucret}"></td>
-            <td><input type="checkbox" onchange="tarifeler[${i}].devam=this.checked; if(this.checked) tarifeler[${i}].bit=''; tabloyuGuncelle()" ${t.devam ? 'checked' : ''}></td>
+            <td><input type="checkbox" onchange="tarifeler[${i}].devam=this.checked; tabloyuGuncelle()" ${t.devam ? 'checked' : ''}></td>
             <td><button onclick="tarifeler.splice(${i},1); tabloyuGuncelle()">X</button></td>
         </tr>`;
     });
@@ -111,109 +88,58 @@ function kaydet() {
     let bitler = document.querySelectorAll('.bit');
     let ucretler = document.querySelectorAll('.ucr');
     let kutular = document.querySelectorAll('input[type="checkbox"]');
-    
     tarifeler = [];
     for(let i=0; i<baslar.length; i++) {
-        tarifeler.push({
-            bas: baslar[i].value, 
-            bit: kutular[i].checked ? "" : bitler[i].value,
-            ucret: parseFloat(ucretler[i].value),
-            devam: kutular[i].checked
-        });
+        tarifeler.push({ bas: baslar[i].value, bit: bitler[i].value, ucret: parseFloat(ucretler[i].value), devam: kutular[i].checked });
     }
     localStorage.setItem('tarifeler', JSON.stringify(tarifeler));
-    tabloyuGuncelle();
-    alert("Ayarlar güncellendi!");
+    alert("Ayarlar kaydedildi!");
 }
-
-function yeniSatirEkle() { tarifeler.push({bas:"01.01.2027", bit:"", ucret:0, devam:false}); tabloyuGuncelle(); }
 
 async function analizEt() {
-    if(!window.tempImage) return alert("Görsel yüklenmemiş!");
-    
+    if(!window.tempImage) return alert("Lütfen önce bir görsel yükleyin!");
     document.getElementById('sonucAlani').innerHTML = "Analiz ediliyor, lütfen bekleyiniz...";
     
-    // Tesseract ayarlarını optimize ettik
     let { data: { text } } = await Tesseract.recognize(window.tempImage, 'tur', {
-        tessedit_char_whitelist: '0123456789./- ', 
+        tessedit_char_whitelist: '0123456789./- ',
     });
 
-    // Okunan metni konsola yazdıralım (Hata ayıklamak için)
-    console.log("Okunan Ham Metin: ", text);
-
-    // Tarihleri yakalamak için geliştirilmiş regex
-    let tarihRegex = /(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})/g;
-    let tarihler = text.match(tarihRegex) || [];
-    
-    if (tarihler.length === 0) {
-        document.getElementById('sonucAlani').innerHTML = "Tarih okunamadı! Lütfen tebligat tarihinin olduğu yeri net çekin.";
-        return;
-    }
+    // Satır satır okuma mantığı
+    let satirlar = text.split('\n');
+    let tarihler = [];
+    satirlar.forEach(s => {
+        let m = s.match(/(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})/g);
+        if(m) m.forEach(t => tarihler.push(t));
+    });
 
     let toplam = 0, sayac = 0;
-    
     tarihler.forEach(tStr => {
         let p = tStr.split(/[\/\.-]/);
-        // Tarih nesnesini oluştururken güvenlik önlemi
-        let d = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
-        
+        let d = new Date(p[2], p[1]-1, p[0]);
         let tarife = tarifeler.find(tr => {
             let b = tr.bas.split('.');
-            let basTarih = new Date(parseInt(b[2]), parseInt(b[1]-1), parseInt(b[0]));
-            
+            let basTarih = new Date(b[2], b[1]-1, b[0]);
             if (tr.devam) return d >= basTarih;
-            
             let bt = tr.bit.split('.');
-            let bitTarih = new Date(parseInt(bt[2]), parseInt(bt[1]-1), parseInt(bt[0]));
+            let bitTarih = new Date(bt[2], bt[1]-1, bt[0]);
             return d >= basTarih && d <= bitTarih;
         });
-        
-        if(tarife) { 
-            toplam += tarife.ucret; 
-            sayac++; 
-        }
+        if(tarife) { toplam += tarife.ucret; sayac++; }
     });
 
-    document.getElementById('sonucAlani').innerHTML = `
-        <p>Okunan Tarihler: ${tarihler.join(', ')}</p>
-        Toplam Tebligat Adedi: <b>${sayac}</b><br>
-        <span style="font-size:22px; color:#4ade80;">Toplam Tutar: <b>${toplam.toFixed(2)} TL</b></span>
-    `;
+    document.getElementById('sonucAlani').innerHTML = `Bulunan Tarih Sayısı: ${sayac}<br>Toplam Tutar: <b>${toplam.toFixed(2)} TL</b>`;
 }
 
-function handlePaste(e) {
-    let item = e.clipboardData.items[0];
-    if(item && item.type.includes("image")) {
-        window.tempImage = item.getAsFile();
-        let reader = new FileReader();
-        reader.onload = (e) => { document.getElementById('onizleme').src = e.target.result; document.getElementById('onizleme').style.display = 'block'; };
-        reader.readAsDataURL(window.tempImage);
-    }
-}
-
-function gorselSecildi(inp) { 
+function gorselSecildi(inp) {
     window.tempImage = inp.files[0];
     let reader = new FileReader();
     reader.onload = (e) => { document.getElementById('onizleme').src = e.target.result; document.getElementById('onizleme').style.display = 'block'; };
     reader.readAsDataURL(window.tempImage);
 }
+function handlePaste(e) { /* ... yapıştırma mantığı ... */ }
+function yeniSatirEkle() { tarifeler.push({bas:"01.01.2027", bit:"", ucret:0, devam:false}); tabloyuGuncelle(); }
+
 tabloyuGuncelle();
-
-// --- GÜVENLİK VE TELİF KORUMASI ---
-document.addEventListener('contextmenu', function(event) {
-    event.preventDefault();
-    alert("Bu programın hakkı Emre Yetkin KELEŞ (ab242319)'e aittir ©, sahibinden izinsiz kopyalanması ve çoğaltılması yasaktır. Güzel günlerde kullanmanız dileğiyle...");
-});
-
-document.onselectstart = function() { return false; };
-
-document.onkeydown = function(e) {
-    if (e.keyCode == 123 || 
-       (e.ctrlKey && e.shiftKey && (e.keyCode == 'I'.charCodeAt(0) || e.keyCode == 'J'.charCodeAt(0) || e.keyCode == 'C'.charCodeAt(0))) ||
-       (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0))) {
-        return false;
-    }
-};
 </script>
 </body>
 </html>
