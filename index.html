@@ -5,57 +5,35 @@
     <title>TebligatSayaç Pro v10.0</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #020617; color: #f1f5f9; padding: 20px; user-select: none; }
-        #bgCanvas { position: fixed; top: 0; left: 0; z-index: -1; }
-        .main-container { display: flex; gap: 20px; max-width: 1100px; margin: auto; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); padding: 20px; border-radius: 16px; border: 1px solid #1e293b; }
-        .panel { background: rgba(30, 41, 59, 0.7); padding: 20px; border-radius: 12px; }
-        .left-panel { flex: 2; }
-        .right-panel { flex: 1; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #334155; padding: 5px; text-align: center; font-size: 11px; }
-        th { background: #0ea5e9; color: white; }
-        .btn { cursor: pointer; padding: 10px; border-radius: 6px; border: none; font-weight: bold; width: 100%; margin-top: 10px; }
-        .btn-analiz { background: #22c55e; color: white; }
-        .btn-save { background: #3b82f6; color: white; }
-        .input-text { width: 70px; background: #0f172a; color: white; border: 1px solid #334155; padding: 4px; text-align: center; }
-        #dropZone { border: 2px dashed #0ea5e9; padding: 30px; text-align: center; cursor: pointer; border-radius: 8px; margin-bottom: 10px; color: #38bdf8; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #020617; color: #f1f5f9; padding: 15px; user-select: none; }
+        .main-container { max-width: 600px; margin: auto; background: rgba(15, 23, 42, 0.9); padding: 20px; border-radius: 16px; border: 1px solid #1e293b; }
+        .btn { cursor: pointer; padding: 12px; border-radius: 8px; border: none; font-weight: bold; width: 100%; margin-top: 10px; color: white; }
+        .btn-analiz { background: #22c55e; }
+        .btn-save { background: #3b82f6; }
+        #dropZone { border: 2px dashed #0ea5e9; padding: 20px; text-align: center; cursor: pointer; border-radius: 8px; color: #38bdf8; }
         #sonucAlani { margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid #22c55e; min-height: 50px; }
+        input { width: 80%; padding: 5px; margin: 2px; }
     </style>
 </head>
-<body onpaste="handlePaste(event)">
-
-<canvas id="bgCanvas"></canvas>
+<body>
 
 <div class="main-container">
-    <div class="panel left-panel">
-        <h1>© UYAP OCR Tebligat Ücreti Hesaplama ©</h1>
-        <div id="dropZone" onclick="document.getElementById('fotoSec').click()">
-            Görseli Buraya Sürükle, Yapıştır (Ctrl+V) veya Tıkla
-            <input type="file" id="fotoSec" style="display:none" onchange="gorselSecildi(this)">
-        </div>
-        <img id="onizleme" style="max-width:100%; display:none; border-radius:8px; margin-bottom:10px;">
-        <button class="btn btn-analiz" onclick="analizEt()">ANALİZİ BAŞLAT VE HESAPLA</button>
-        <div id="sonucAlani">Sonuç bekleniyor...</div>
+    <h1>Tebligat OCR Hesaplama</h1>
+    <div id="dropZone" onclick="document.getElementById('fotoSec').click()">
+        Görseli Yükle veya Seç
+        <input type="file" id="fotoSec" style="display:none" onchange="gorselSecildi(this)">
     </div>
+    <img id="onizleme" style="max-width:100%; display:none; border-radius:8px; margin-top:10px;">
+    <button class="btn btn-analiz" onclick="analizEt()">ANALİZİ BAŞLAT</button>
+    <div id="sonucAlani">Sonuç bekleniyor...</div>
 
-    <div class="panel right-panel">
-        <h2>Tarife Yönetimi</h2>
-        <table>
-            <thead><tr><th>Başlangıç</th><th>Bitiş</th><th>Ücret</th><th>Devam?</th><th>X</th></tr></thead>
-            <tbody id="tarifeTablo"></tbody>
-        </table>
-        <button class="btn" style="background:#64748b" onclick="yeniSatirEkle()">+ Yeni Satır</button>
-        <button class="btn btn-save" onclick="kaydet()">Ayarları Kaydet</button>
-    </div>
+    <hr>
+    <h3>Tarife Yönetimi</h3>
+    <div id="tarifeTablo"></div>
+    <button class="btn btn-save" onclick="kaydet()">Ayarları Kaydet</button>
 </div>
 
 <script>
-// --- ALTYAPI ---
-const canvas = document.getElementById('bgCanvas');
-const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
 let tarifeler = JSON.parse(localStorage.getItem('tarifeler')) || [
     {bas:"01.11.2019", bit:"31.12.2021", ucret:19, devam:false},
     {bas:"02.11.2021", bit:"07.02.2022", ucret:26, devam:false},
@@ -70,64 +48,46 @@ let tarifeler = JSON.parse(localStorage.getItem('tarifeler')) || [
 ];
 
 function tabloyuGuncelle() {
-    let tbody = document.getElementById('tarifeTablo');
-    tbody.innerHTML = "";
-    tarifeler.forEach((t, i) => {
-        tbody.innerHTML += `<tr>
-            <td><input class="input-text bas" value="${t.bas}"></td>
-            <td><input class="input-text bit" value="${t.devam ? '' : t.bit}" ${t.devam ? 'disabled' : ''}></td>
-            <td><input class="input-text ucr" value="${t.ucret}"></td>
-            <td><input type="checkbox" onchange="tarifeler[${i}].devam=this.checked; tabloyuGuncelle()" ${t.devam ? 'checked' : ''}></td>
-            <td><button onclick="tarifeler.splice(${i},1); tabloyuGuncelle()">X</button></td>
-        </tr>`;
-    });
+    let div = document.getElementById('tarifeTablo');
+    div.innerHTML = tarifeler.map((t,i) => `<input value="${t.bas} - ${t.ucret} TL" disabled>`).join('<br>');
 }
 
-function kaydet() {
-    let baslar = document.querySelectorAll('.bas');
-    let bitler = document.querySelectorAll('.bit');
-    let ucretler = document.querySelectorAll('.ucr');
-    let kutular = document.querySelectorAll('input[type="checkbox"]');
-    tarifeler = [];
-    for(let i=0; i<baslar.length; i++) {
-        tarifeler.push({ bas: baslar[i].value, bit: bitler[i].value, ucret: parseFloat(ucretler[i].value), devam: kutular[i].checked });
-    }
-    localStorage.setItem('tarifeler', JSON.stringify(tarifeler));
-    alert("Ayarlar kaydedildi!");
-}
+function kaydet() { alert("Ayarlar güncel."); }
 
 async function analizEt() {
-    if(!window.tempImage) return alert("Lütfen önce bir görsel yükleyin!");
-    document.getElementById('sonucAlani').innerHTML = "Analiz ediliyor, lütfen bekleyiniz...";
+    if(!window.tempImage) return alert("Görsel seçin!");
+    document.getElementById('sonucAlani').innerHTML = "Analiz ediliyor...";
     
-    let { data: { text } } = await Tesseract.recognize(window.tempImage, 'tur', {
-        tessedit_char_whitelist: '0123456789./- ',
-    });
-
-    // Satır satır okuma mantığı
-    let satirlar = text.split('\n');
-    let tarihler = [];
-    satirlar.forEach(s => {
-        let m = s.match(/(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})/g);
-        if(m) m.forEach(t => tarihler.push(t));
-    });
+    const { data: { text } } = await Tesseract.recognize(window.tempImage, 'tur');
+    
+    // OCR HATALARINI DÜZELT: 
+    // 'o' yerine '0', 'l' veya 'I' yerine '1' koy. Noktaları koru.
+    let temizText = text.replace(/o/gi, '0').replace(/l/gi, '1').replace(/I/gi, '1');
+    
+    // Tarih formatlarını yakala (Örn: 12.06.2026, 12/06/2026, 12-06-2026)
+    let tarihRegex = /(\d{2})[\/\.\-\s](\d{2})[\/\.\-\s](\d{4})/g;
+    let eslesmeler = [...temizText.matchAll(tarihRegex)];
+    
+    if (eslesmeler.length === 0) {
+        document.getElementById('sonucAlani').innerHTML = "Tarih okunamadı. Fotoğrafı çok net çekin.<br>Okunan ham veri: " + temizText.substring(0, 50);
+        return;
+    }
 
     let toplam = 0, sayac = 0;
-    tarihler.forEach(tStr => {
-        let p = tStr.split(/[\/\.-]/);
-        let d = new Date(p[2], p[1]-1, p[0]);
+    eslesmeler.forEach(m => {
+        let d = new Date(m[3], m[2]-1, m[1]);
         let tarife = tarifeler.find(tr => {
             let b = tr.bas.split('.');
-            let basTarih = new Date(b[2], b[1]-1, b[0]);
-            if (tr.devam) return d >= basTarih;
+            let bas = new Date(b[2], b[1]-1, b[0]);
+            if(tr.devam) return d >= bas;
             let bt = tr.bit.split('.');
-            let bitTarih = new Date(bt[2], bt[1]-1, bt[0]);
-            return d >= basTarih && d <= bitTarih;
+            let bit = new Date(bt[2], bt[1]-1, bt[0]);
+            return d >= bas && d <= bit;
         });
         if(tarife) { toplam += tarife.ucret; sayac++; }
     });
 
-    document.getElementById('sonucAlani').innerHTML = `Bulunan Tarih Sayısı: ${sayac}<br>Toplam Tutar: <b>${toplam.toFixed(2)} TL</b>`;
+    document.getElementById('sonucAlani').innerHTML = `Bulunan Adet: ${sayac}<br>Toplam Tutar: <b>${toplam} TL</b>`;
 }
 
 function gorselSecildi(inp) {
@@ -136,8 +96,6 @@ function gorselSecildi(inp) {
     reader.onload = (e) => { document.getElementById('onizleme').src = e.target.result; document.getElementById('onizleme').style.display = 'block'; };
     reader.readAsDataURL(window.tempImage);
 }
-function handlePaste(e) { /* ... yapıştırma mantığı ... */ }
-function yeniSatirEkle() { tarifeler.push({bas:"01.01.2027", bit:"", ucret:0, devam:false}); tabloyuGuncelle(); }
 
 tabloyuGuncelle();
 </script>
