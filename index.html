@@ -106,28 +106,39 @@ function yeniSatirEkle() { tarifeler.push({bas:"01.01.2027", bit:"", ucret:0, de
 
 async function analizEt() {
     if(!window.tempImage) return alert("Lütfen önce görsel yükleyin!");
-    document.getElementById('sonucAlani').innerHTML = "Analiz ediliyor, lütfen bekleyiniz...";
+    document.getElementById('sonucAlani').innerHTML = "Analiz ediliyor... (Lütfen bekleyin, bu işlem internet gerektirebilir)";
     
-    const { data: { text } } = await Tesseract.recognize(window.tempImage, 'tur');
-    let t = text.replace(/o/gi, '0').replace(/l/gi, '1').replace(/I/gi, '1');
-    let tarihler = t.match(/(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})/g) || [];
-
-    let toplam = 0, sayac = 0;
-    tarihler.forEach(tStr => {
-        let p = tStr.split(/[\/\.-]/);
-        let d = new Date(p[2], p[1]-1, p[0]);
-        let tarife = tarifeler.find(tr => {
-            let b = tr.bas.split('.');
-            let basTarih = new Date(b[2], b[1]-1, b[0]);
-            if (tr.devam) return d >= basTarih;
-            let bt = tr.bit.split('.');
-            let bitTarih = new Date(bt[2], bt[1]-1, bt[0]);
-            return d >= basTarih && d <= bitTarih;
+    // Tesseract'ı daha güvenli ve hızlı başlat
+    try {
+        const { data: { text } } = await Tesseract.recognize(window.tempImage, 'tur', {
+            // Dil verisini önbellekten veya CDN'den daha güvenli çeker
+            workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/worker.min.js',
+            corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.3/tesseract-core.wasm.js',
+            langPath: 'https://tessdata.projectnaptha.com/4.0.0'
         });
-        if(tarife) { toplam += tarife.ucret; sayac++; }
-    });
 
-    document.getElementById('sonucAlani').innerHTML = `Bulunan Adet: <b>${sayac}</b><br>Toplam Tutar: <b>${toplam.toFixed(2)} TL</b>`;
+        let t = text.replace(/o/gi, '0').replace(/l/gi, '1').replace(/I/gi, '1');
+        let tarihler = t.match(/(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})/g) || [];
+
+        let toplam = 0, sayac = 0;
+        tarihler.forEach(tStr => {
+            let p = tStr.split(/[\/\.-]/);
+            let d = new Date(p[2], p[1]-1, p[0]);
+            let tarife = tarifeler.find(tr => {
+                let b = tr.bas.split('.');
+                let basTarih = new Date(b[2], b[1]-1, b[0]);
+                if (tr.devam) return d >= basTarih;
+                let bt = tr.bit.split('.');
+                let bitTarih = new Date(bt[2], bt[1]-1, bt[0]);
+                return d >= basTarih && d <= bitTarih;
+            });
+            if(tarife) { toplam += tarife.ucret; sayac++; }
+        });
+
+        document.getElementById('sonucAlani').innerHTML = `Bulunan Adet: <b>${sayac}</b><br>Toplam Tutar: <b>${toplam.toFixed(2)} TL</b>`;
+    } catch (err) {
+        document.getElementById('sonucAlani').innerHTML = "Analiz hatası: " + err.message + "<br>İnternet bağlantınızı kontrol edin.";
+    }
 }
 
 function gorselSecildi(inp) {
