@@ -55,6 +55,7 @@
 </div>
 
 <script>
+// --- ARKA PLAN ---
 const canvas = document.getElementById('bgCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth; canvas.height = window.innerHeight;
@@ -67,6 +68,7 @@ function draw() {
 }
 draw();
 
+// --- VERİ ---
 let tarifeler = JSON.parse(localStorage.getItem('tarifeler')) || [
     {bas:"01.11.2019", bit:"31.12.2021", ucret:19, devam:false}, {bas:"02.11.2021", bit:"07.02.2022", ucret:26, devam:false},
     {bas:"08.02.2022", bit:"15.08.2022", ucret:31, devam:false}, {bas:"16.08.2022", bit:"31.01.2023", ucret:42, devam:false},
@@ -104,41 +106,32 @@ function kaydet() {
 
 function yeniSatirEkle() { tarifeler.push({bas:"01.01.2027", bit:"", ucret:0, devam:false}); tabloyuGuncelle(); }
 
+// --- ANALİZ ---
 async function analizEt() {
     if(!window.tempImage) return alert("Lütfen önce görsel yükleyin!");
-    document.getElementById('sonucAlani').innerHTML = "Analiz ediliyor... (Lütfen bekleyin, bu işlem internet gerektirebilir)";
+    document.getElementById('sonucAlani').innerHTML = "Analiz ediliyor...";
     
-    // Tesseract'ı daha güvenli ve hızlı başlat
-    try {
-        const { data: { text } } = await Tesseract.recognize(window.tempImage, 'tur', {
-            // Dil verisini önbellekten veya CDN'den daha güvenli çeker
-            workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/worker.min.js',
-            corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.3/tesseract-core.wasm.js',
-            langPath: 'https://tessdata.projectnaptha.com/4.0.0'
+    const { data: { text } } = await Tesseract.recognize(window.tempImage, 'tur');
+    let temizText = text.replace(/o/gi, '0').replace(/l/gi, '1').replace(/I/gi, '1');
+    let tarihRegex = /(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})/g;
+    let tarihler = temizText.match(tarihRegex) || [];
+
+    let toplam = 0, sayac = 0;
+    tarihler.forEach(tStr => {
+        let p = tStr.split(/[\/\.-]/);
+        let d = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
+        let tarife = tarifeler.find(tr => {
+            let b = tr.bas.split('.');
+            let basTarih = new Date(parseInt(b[2]), parseInt(b[1])-1, parseInt(b[0]));
+            if (tr.devam) return d >= basTarih;
+            let bt = tr.bit.split('.');
+            let bitTarih = new Date(parseInt(bt[2]), parseInt(bt[1]-1), parseInt(bt[0]));
+            return d >= basTarih && d <= bitTarih;
         });
+        if(tarife) { toplam += tarife.ucret; sayac++; console.log("Bulundu: " + tStr + " (" + tarife.ucret + " TL)"); }
+    });
 
-        let t = text.replace(/o/gi, '0').replace(/l/gi, '1').replace(/I/gi, '1');
-        let tarihler = t.match(/(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})/g) || [];
-
-        let toplam = 0, sayac = 0;
-        tarihler.forEach(tStr => {
-            let p = tStr.split(/[\/\.-]/);
-            let d = new Date(p[2], p[1]-1, p[0]);
-            let tarife = tarifeler.find(tr => {
-                let b = tr.bas.split('.');
-                let basTarih = new Date(b[2], b[1]-1, b[0]);
-                if (tr.devam) return d >= basTarih;
-                let bt = tr.bit.split('.');
-                let bitTarih = new Date(bt[2], bt[1]-1, bt[0]);
-                return d >= basTarih && d <= bitTarih;
-            });
-            if(tarife) { toplam += tarife.ucret; sayac++; }
-        });
-
-        document.getElementById('sonucAlani').innerHTML = `Bulunan Adet: <b>${sayac}</b><br>Toplam Tutar: <b>${toplam.toFixed(2)} TL</b>`;
-    } catch (err) {
-        document.getElementById('sonucAlani').innerHTML = "Analiz hatası: " + err.message + "<br>İnternet bağlantınızı kontrol edin.";
-    }
+    document.getElementById('sonucAlani').innerHTML = `Bulunan Adet: <b>${sayac}</b><br>Toplam Tutar: <b>${toplam.toFixed(2)} TL</b>`;
 }
 
 function gorselSecildi(inp) {
