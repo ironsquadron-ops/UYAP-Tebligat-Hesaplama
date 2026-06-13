@@ -2,64 +2,36 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>UYAP OCR Tebligat Ücreti Hesaplama</title>
+    <title>TebligatSayaç Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        body { background: #020617; color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: url('https://www.transparenttextures.com/patterns/stardust.png'), radial-gradient(circle at center, #0f172a 0%, #020617 100%); }
-        .main-container { width: 95%; max-width: 950px; background: rgba(15, 23, 42, 0.95); border: 1px solid #1e293b; border-radius: 12px; padding: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        h1 { text-align: center; color: #0ea5e9; font-size: 22px; margin-bottom: 25px; border-bottom: 1px solid #1e293b; padding-bottom: 15px; }
-        .content-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-        .box { background: rgba(30, 41, 59, 0.5); padding: 20px; border-radius: 8px; border: 1px solid #334155; }
-        .btn { background: #22c55e; color: white; padding: 15px; border: none; border-radius: 6px; font-weight: bold; width: 100%; cursor: pointer; margin-top: 15px; transition: 0.3s; }
-        .btn:hover { background: #16a34a; }
-        #sonuc { margin-top: 15px; padding: 15px; background: #000; border: 1px solid #22c55e; border-radius: 6px; font-size: 14px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #334155; padding: 8px; text-align: center; font-size: 13px; }
-        th { background: #1e293b; color: #0ea5e9; }
-        .footer { text-align: center; font-size: 11px; color: #64748b; margin-top: 25px; }
+        body { margin: 0; background-color: #020617; color: #fff; font-family: sans-serif; padding: 20px; }
+        .main { max-width: 600px; margin: auto; background: #0f172a; padding: 20px; border-radius: 12px; }
+        #sonuc { margin-top: 20px; padding: 15px; border: 1px solid #22c55e; border-radius: 8px; }
     </style>
 </head>
 <body>
-
-<div class="main-container">
-    <h1>© UYAP OCR TEBLİGAT ÜCRETİ HESAPLAMA ©</h1>
-    
-    <div class="content-wrapper">
-        <div class="box">
-            <h3>Dosya Yükleme</h3>
-            <input type="file" id="foto" style="width:100%">
-            <button class="btn" onclick="hesapla()">UYAP OCR ANALİZİ BAŞLAT</button>
-            <div id="sonuc">Sonuç bekleniyor...</div>
-        </div>
-        <div class="box">
-            <h3>Tarife Ayarları</h3>
-            <table>
-                <thead><tr><th>Tarih</th><th>Ücret</th></tr></thead>
-                <tbody id="tablo"></tbody>
-            </table>
-        </div>
-    </div>
-    
-    <div class="footer">
-        Geliştirici ve Hazırlayan: Emre Yetkin KELEŞ | ab242319@adalet.gov.tr
-    </div>
+<div class="main">
+    <h1>Tebligat Sayaç</h1>
+    <input type="file" id="f" onchange="oku(this)">
+    <div id="sonuc">Lütfen tebligat listesini seç...</div>
 </div>
 
 <script>
-let tarifeler = [{b:"01.11.2019", u:19},{b:"02.11.2021", u:26},{b:"08.02.2022", u:31},{b:"16.08.2022", u:42},{b:"01.02.2023", u:58},{b:"31.07.2023", u:87},{b:"22.01.2024", u:120},{b:"01.06.2024", u:175},{b:"10.02.2025", u:210},{b:"04.02.2026", u:265}];
-document.getElementById('tablo').innerHTML = tarifeler.map(x => `<tr><td>${x.b}</td><td>${x.u} TL</td></tr>`).join('');
-
-async function hesapla() {
-    let f = document.getElementById('foto').files[0];
-    if(!f) return alert("Lütfen görsel seçin!");
+async function oku(inp) {
     let s = document.getElementById('sonuc');
-    s.innerText = "Analiz ediliyor...";
+    s.innerText = "Okunuyor, lütfen bekle...";
+    
     try {
-        const { data: { text } } = await Tesseract.recognize(f, 'tur');
-        let adet = (text.match(/(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})/g) || []).length;
-        s.innerHTML = `Bulunan Adet: <b>${adet}</b><br>Toplam Tutar: <b>${adet * 265} TL</b>`;
-    } catch(e) {
-        s.innerHTML = "HATA: APK içinde çalışmaz! Chrome'da açıp 'Ana Ekrana Ekle' de.";
+        const { data: { text } } = await Tesseract.recognize(inp.files[0], 'tur');
+        let tarihler = text.match(/(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})/g) || [];
+        
+        let adet = tarihler.length;
+        let toplam = adet * 265;
+        
+        s.innerHTML = `Toplam okunan: ${adet} adet<br>Toplam Tutar: ${toplam} TL`;
+    } catch (e) {
+        s.innerHTML = "Hata oluştu. Chrome'da açmayı dene.";
     }
 }
 </script>
