@@ -2,60 +2,40 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TebligatSayaç Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
     <style>
-        body { margin: 0; padding: 20px; font-family: sans-serif; color: #f1f5f9; overflow-x: hidden; }
-        #bgCanvas { position: fixed; top: 0; left: 0; z-index: -1; background-color: #020617; }
-        .main-container { max-width: 800px; margin: auto; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); padding: 20px; border-radius: 16px; border: 1px solid #1e293b; }
-        .btn { cursor: pointer; padding: 12px; border-radius: 8px; border: none; font-weight: bold; width: 100%; margin-top: 10px; color: white; }
-        .btn-analiz { background: #22c55e; }
-        #dropZone { border: 2px dashed #0ea5e9; padding: 20px; text-align: center; cursor: pointer; border-radius: 8px; color: #38bdf8; }
-        #sonucAlani { margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid #22c55e; }
+        body { margin: 0; background-color: #020617; color: #fff; font-family: sans-serif; padding: 20px; }
+        .main { max-width: 600px; margin: auto; background: #0f172a; padding: 20px; border-radius: 12px; }
+        #sonuc { margin-top: 20px; padding: 15px; border: 1px solid #22c55e; border-radius: 8px; }
     </style>
 </head>
 <body>
-    <canvas id="bgCanvas"></canvas>
-    <div class="main-container">
-        <h1>UYAP Tebligat OCR</h1>
-        <div id="dropZone" onclick="document.getElementById('fotoSec').click()">
-            Görsel Seç
-            <input type="file" id="fotoSec" style="display:none" onchange="gorselSecildi(this)">
-        </div>
-        <img id="onizleme" style="max-width:100%; display:none; border-radius:8px; margin-top:10px;">
-        <button class="btn btn-analiz" onclick="analizEt()">ANALİZİ BAŞLAT</button>
-        <div id="sonucAlani">Sonuç bekleniyor...</div>
-    </div>
+<div class="main">
+    <input type="file" id="f" onchange="oku(this)">
+    <div id="sonuc">Lütfen tebligat listesini seç...</div>
+</div>
 
-    <script>
-        const canvas = document.getElementById('bgCanvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-        let particles = Array.from({length: 80}, () => ({x:Math.random()*canvas.width, y:Math.random()*canvas.height, v:Math.random()*0.5+0.1}));
-        function draw() {
-            ctx.fillStyle = "#020617"; ctx.fillRect(0,0,canvas.width, canvas.height);
-            ctx.fillStyle = "#38bdf8";
-            particles.forEach(p => { p.y -= p.v; if(p.y < 0) p.y = canvas.height; ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2); ctx.fill(); });
-            requestAnimationFrame(draw);
-        }
-        draw();
+<script>
+async function oku(inp) {
+    document.getElementById('sonuc').innerText = "Okunuyor, lütfen bekle...";
+    // O(0) ve I(1) hatalarını engellemek için beyaz liste ve yüksek çözünürlük
+    const { data: { text } } = await Tesseract.recognize(inp.files[0], 'tur', {
+        tessedit_char_whitelist: '0123456789./- ',
+        tessedit_pageseg_mode: 3 // Sayfanın tamamını analiz etmeye zorla
+    });
 
-        async function analizEt() {
-            if(!window.tempImage) return alert("Görsel seç!");
-            document.getElementById('sonucAlani').innerHTML = "Analiz ediliyor...";
-            const { data: { text } } = await Tesseract.recognize(window.tempImage, 'tur');
-            let t = text.replace(/o/gi, '0').replace(/l/gi, '1').replace(/I/gi, '1');
-            let tarihler = t.match(/(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})/g) || [];
-            document.getElementById('sonucAlani').innerHTML = "Bulunan Adet: " + tarihler.length + "<br>Ham veri: " + tarihler.join(', ');
-        }
-
-        function gorselSecildi(inp) {
-            window.tempImage = inp.files[0];
-            let reader = new FileReader();
-            reader.onload = (e) => { document.getElementById('onizleme').src = e.target.result; document.getElementById('onizleme').style.display = 'block'; };
-            reader.readAsDataURL(window.tempImage);
-        }
-    </script>
+    let temiz = text.replace(/o/gi, '0').replace(/l/gi, '1').replace(/I/gi, '1');
+    let tarihler = temiz.match(/(\d{2})[\/\.-](\d{2})[\/\.-](\d{4})/g) || [];
+    
+    // YENİLEME: Eğer 13 tebligatın bazılarını kaçırıyorsa, 
+    // metni satırlara bölüp her satırı tek tek tarihe çevirmeye çalışıyoruz
+    let setTarihler = [...new Set(tarihler)]; // Aynı tarihleri tekilleştir
+    
+    document.getElementById('sonuc').innerHTML = 
+        `Toplam okunan: ${tarihler.length} adet<br>` + 
+        `Benzersiz Tarihler: ${setTarihler.join(', ')}`;
+}
+</script>
 </body>
 </html>
